@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Musica">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icone/icona-180.png">
+    <meta name="theme-color" content="#fa2d48">
+    <title>apple music</title>
+    <style>
+    :root {
+        color-scheme: light dark;
+        --sfondo: light-dark(#ffffff, #000000);
+        --testo: light-dark(#1d1d1f, #f5f5f7);
+        --secondario: light-dark(#6e6e73, #98989d);
+        --linea: light-dark(#e5e5ea, #2c2c2e);
+        --pannello: light-dark(#f5f5f7, #1c1c1e);
+        --accento: #fa2d48;
+    }
+
+    * { box-sizing: border-box; }
+    
+    [hidden] { display: none !important; }
+
+    body {
+        margin: 0;
+        padding-bottom: 210px;
+        background: var(--sfondo);
+        color: var(--testo);
+        font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        padding-bottom: calc(210px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .schermata {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 24px 16px;
+    }
+
+    h1 { font-size: 2rem; margin: 0 0 16px; }
+
+    h2 { font-size: 1.2rem; margin: 28px 0 8px; }
+
+    input[type="text"], input[type="search"], select {
+        width: 100%;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        border: none;
+        border-radius: 10px;
+        background: var(--pannello);
+        color: var(--testo);
+        font: inherit;
+    }
+
+    input[type="file"] { font: inherit; color: var(--secondario); }
+
+    input[type="file"]::file-selector-button {
+        margin-right: 12px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 999px;
+        background: var(--accento);
+        color: #ffffff;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .schermata button {
+        margin: 4px 4px 4px 0;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 999px;
+        background: var(--accento);
+        color: #ffffff;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    #indietro { background: none; color: var(--accento); padding-left: 0; }
+
+    #eliminaPlaylist { background: var(--pannello); color: var(--accento); }
+
+    ul { list-style: none; margin: 0; padding: 0; }
+
+    li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 4px;
+        border-bottom: 1px solid var(--linea);
+        cursor: pointer;
+    }
+
+    li:hover { background: var(--pannello); }
+
+    li[style*="bold"] { color: var(--accento); }
+
+    .schermata li button {
+        margin: 0;
+        padding: 4px 10px;
+        background: none;
+        color: var(--secondario);
+        font-size: 1.1rem;
+    }
+
+    #barraPlayer {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 60px;
+        padding: 10px max(16px, calc((100vw - 720px) / 2));
+        background: var(--pannello);
+        border-top: 1px solid var(--linea);
+        border-radius: 30px 30px 0 0;
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    }
+
+    #titolo {
+        margin: 0 0 6px;
+        font-weight: 600;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .comandi { display: flex; justify-content: center; align-items: center; gap: 20px; }
+
+    .comandi button {
+        padding: 4px 10px;
+        border: none;
+        background: none;
+        color: var(--testo);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .comandi button.attivo{
+        color: var(--accento);
+    }
+
+    #play {
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        border-radius: 50%;
+        background: var(--accento);
+        color: #ffffff;
+        font-size: 1.3rem;
+    }
+
+    .progresso {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 6px;
+        font-size: 0.8rem;
+        color: var(--secondario);
+    }
+
+    .progresso input { flex: 1; accent-color: var(--accento); }
+
+    nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 60px;
+        display: flex;
+        background: var(--sfondo);
+        border-top: 1px solid var(--linea);
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .tab {
+        flex: 1;
+        border: none;
+        background: none;
+        color: var(--secondario);
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .tab.attivo { color: var(--accento); font-weight: 600; }
+
+    .copertina {
+        width: 44px;
+        height: 44px;
+        flex: none;
+        margin-right: 12px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+
+    .testoRiga {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .testoRiga div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .testoRiga small {
+        color: var(--secondario);
+        font-weight: 400;
+    }
+
+    #barraPlayer, nav {
+        z-index: 10;
+    }
+
+    #pieno {
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        padding: 24px 16px calc(210px +env(safe-area-inset-bottom, 0px));
+        background: var(--sfondo);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+    }
+
+    #chiudi {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        border: none;
+        background: none;
+        color: var(--accento);
+        font-size: 2rem;
+        cursor: pointer;
+    }
+
+    #copertinaGrande .copertina {
+        width: min(70vw, 320px);
+        height: min(70vw, 320px);
+        margin: 0;
+        border-radius: 16px;
+        font-size: 6rem;
+    }
+
+    #titoloGrande {
+        margin: 0;
+        text-align: center;
+    }
+
+    #titolo {
+        cursor: pointer;
+    }
+
+    .schermata li button.attivo {
+        color: var(--accento);
+    }
+
+    #cuoreGrande {
+        border: none;
+        background: none;
+        color: var(--secondario);
+        font-size: 2.2rem;
+        cursor: pointer;
+    }
+
+    #cuoreGrande.attivo {
+        color: var(--accento);
+    }
+
+    .rigaTitolo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    #titolo {
+        margin: 0;
+        min-width: 0;
+    }
+
+    #cuoreBarra {
+        border: none;
+        background: none;
+        color: var(--secondario);
+        font-size: 1.4rem;
+        padding: 0 4px;
+        cursor: pointer;
+    }
+
+    #cuoreBarra.attivo {
+        color: var(--accento);
+    }
+    </style>
+</head>
+<body>
+    <audio id="player"></audio>
+
+    <section id="schermata-home" class="schermata">
+        <h1>Home</h1>
+
+        <h2>Le tue playlist</h2>
+        <ul id="homePlaylist"></ul>
+
+        <h2>Ascoltati di recente</h2>
+        <ul id="homeRecenti"></ul>
+
+        <h2>Preferiti</h2>
+        <button id="riproduciPreferiti">▶ Riproduci</button>
+        <ul id="homePreferiti"></ul>
+    </section>
+
+    <section id="schermata-cerca" class="schermata" hidden>
+        <h1>Cerca</h1>
+        <input type="search" id="ricerca" placeholder="Cerca un brano">
+        <p id="nessunRisultato" style="display: none;">Nessun brano trovato</p>
+        <ul id="risultati"></ul>
+    </section>
+
+    <section id="schermata-libreria" class="schermata"hidden>
+        <h1>La mia libreria</h1>
+
+        <h2>Playlist</h2>
+        <input type="text" id="nomeNuova" placeholder="Nome della nuova playlist">
+        <button id="creaPlaylist">Crea</button>
+        <ul id="elencoPlaylist"></ul>
+
+        <h2>Brani</h2>
+        <input type="file" id="scelta" accept="audio/*" multiple>
+        <ul id="lista"></ul>
+    </section>
+
+    <section id="schermata-impostazioni" class="schermata" hidden>
+        <h1>Impostazioni</h1>
+
+        <h2>Aspetto</h2>
+        <select id="tema">
+            <option value="auto">Predefinito</option>
+            <option value="chiaro">Chiaro</option>
+            <option value="scuro">Scuro</option>
+        </select>
+    </section>
+
+    <section id="schermata-playlist" class="schermata" hidden>
+        <button id="indietro">‹ La mia libreria</button>
+        <h1 id="nomePlaylist"></h1>
+        <button id="riproduciPlaylist">▶ Riproduci</button>
+        <button id="eliminaPlaylist">Elimina playlist</button>
+        <p>
+            <select id="sceltaBrano"></select>
+            <button id="aggiungiBrano">Aggiungi alla playlist</button>
+        </p>
+        <ul id="righePlaylist"></ul>
+    </section>
+
+    <div id="pieno" hidden>
+        <button id="chiudi">⌄</button>;
+        <div id="copertinaGrande"></div>
+        <h2 id="titoloGrande"></h2>
+        <button id="cuoreGrande">♡</button>
+    </div>
+
+    <div id="barraPlayer">
+        <div class="rigaTitolo">
+            <p id="titolo">Nessun brano</p>
+            <button id="cuoreBarra" hidden>♡</button>
+        </div>
+
+        <div class="comandi">
+            <button id="casuale">⇄</button>
+            <button id="precedente">⏮</button>
+            <button id="play">▶</button>
+            <button id="successivo">⏭</button>
+            <button id="ripeti">↻</button>
+        </div>
+
+        <div class="progresso">
+            <span id="tempoCorrente">0:00</span>
+            <input type="range" id="barra" value="0" min="0" max="100" step="0.1">
+            <span id="durata">0:00</span>
+        </div>
+    </div>
+
+    <nav>
+        <button class="tab" data-schermata="home">Home</button>
+        <button class="tab" data-schermata="cerca">Cerca</button>
+        <button class="tab" data-schermata="libreria">La mia libreria</button>
+        <button class="tab" data-schermata="impostazioni">Impostazioni</button>
+    </nav>
+    
+    <script>
+        const scelta=document.getElementById("scelta");
+        const player=document.getElementById("player");
+        const lista=document.getElementById("lista");
+        const barra=document.getElementById("barra");
+        const bottonePlay=document.getElementById("play");
+        const ricerca=document.getElementById("ricerca");
+        const risultati=document.getElementById("risultati");
+        const bottoneRipeti=document.getElementById("ripeti");
+        const pieno=document.getElementById("pieno");
+        const selettoreTema=document.getElementById("tema");
+        const temaSalvato=localStorage.getItem("tema") || "auto";
+
+        let brani=[];
+        let corrente=-1;
+        let db;
+        let testoRicerca="";
+        let playlist=JSON.parse(localStorage.getItem("playlist") || "[]");
+        let coda=[];
+        let playlistAperta=null;
+        let recenti=JSON.parse(localStorage.getItem("recenti") || "[]");
+        let casuale=false;
+        let ripeti=0;
+        let preferiti=JSON.parse(localStorage.getItem("preferti") || "[]");
+
+        function apriDatabase() {
+            return new Promise(function (risolvi) {
+                const richiesta=indexedDB.open("musica", 1);
+
+                richiesta.onupgradeneeded=function() {
+                    richiesta.result.createObjectStore("brani", {keyPath: "id", autoIncrement: true});
+                };
+
+                richiesta.onsuccess=function() {
+                    risolvi(richiesta.result);
+                };
+            });
+        }
+
+        function aspetta(richiesta) {
+            return new Promise(function (risolvi) {
+                richiesta.onsuccess=function() {
+                    risolvi(richiesta.result);
+                };
+            });
+        }
+
+        function archivio(modo) {
+            return db.transaction("brani", modo).objectStore("brani");
+        }
+
+        async function caricaBrani() {
+            brani=await aspetta(archivio("readonly").getAll());
+            mostraLista();
+        }
+
+        async function eliminaBrano(id) {
+            const posizione=brani.findIndex(function (b) {return b.id===id;});
+
+            if (posizione===corrente) {
+                player.pause();
+                player.removeAttribute("src");
+                corrente=-1;
+                document.getElementById("titolo").textContent="Nessun brano";
+            }else if (posizione<corrente) {
+                corrente--;
+            }
+
+            await aspetta(archivio("readwrite").delete(id));
+
+            playlist.forEach(function (p) {
+                p.brani=p.brani.filter(function (x) {return x!==id;});
+            });
+            coda=coda.filter(function (x) {return x!==id;});
+
+            preferiti=preferiti.filter(function (x) {return x!==id;});
+            salvaPreferiti();
+            salvaPlaylist();
+            await caricaBrani();
+        }
+
+        function creaRiga(brano, numero) {
+            const riga=document.createElement("li");
+            const elimina=document.createElement("button");
+            const cuore=document.createElement("button");
+            const preferito=preferiti.includes(brano.id);
+            riempiRiga(riga, brano.nome);
+
+            if(numero===corrente) {
+                riga.style.fontWeight="bold";
+            }
+
+            riga.addEventListener("click", function() {
+                coda=[];
+                suona(numero);
+            });
+
+            elimina.textContent="✕";
+            elimina.addEventListener("click", function(evento) {
+                evento.stopPropagation();
+                eliminaBrano(brano.id);
+            });
+
+            cuore.textContent=preferito ? "♥" : "♡";
+            cuore.classList.toggle("attivo", preferito);
+            cuore.addEventListener("click", function (evento) {
+                evento.stopPropagation();
+                cambiaPreferito(brano.id);
+                mostraLista();
+            });
+
+            riga.appendChild(elimina);
+            return riga;
+        }
+
+        function mostraLista() {
+            lista.innerHTML="";
+            risultati.innerHTML="";
+
+            brani.forEach(function(brano, numero) {
+                lista.appendChild(creaRiga(brano, numero));
+
+                if (testoRicerca!== "" && brano.nome.toLowerCase().includes(testoRicerca)) {
+                    risultati.appendChild(creaRiga(brano, numero));
+                }
+            });
+
+            const nessuno=brani.length>0 && lista.children.length===0;
+            document.getElementById("nessunRisultato").style.display=nessuno ? "block" : "none";
+            mostraPlaylist();
+            mostraDettaglio();
+            mostraHome();
+            aggiornaCuori();
+        }
+
+        function colore(nome) {
+            let h=0;
+
+            for(const c of nome) {
+                h=(h*31+c.charCodeAt(0))%360;
+            }
+
+            return "hsl(" + h + ", 60%, 48%)";
+        }
+
+        function copertina(nome) {
+            const c=document.createElement("div");
+
+            c.className="copertina";
+            c.style.background=colore(nome);
+            c.textContent=nome.charAt(0).toUpperCase();
+
+            return c;
+        }
+
+        function riempiRiga(riga, nome, sotto) {
+            const testo=document.createElement("div");
+            const titolo=document.createElement("div");
+
+            testo.className="testoRiga";
+            titolo.textContent=nome;
+            testo.appendChild(titolo);
+
+            if (sotto) {
+                const piccolo=document.createElement("small");
+                
+                piccolo.textContent=sotto;
+                testo.appendChild(piccolo);
+            }
+
+            riga.appendChild(copertina(nome));
+            riga.appendChild(testo);
+        }
+
+        function salvaPlaylist() {
+            localStorage.setItem("playlist", JSON.stringify(playlist));
+        }
+
+        function salvaPreferiti() {
+            localStorage.setItem("preferiti", JSON.stringify(preferiti));
+        }
+
+        function disegnaCuore(cuore) {
+            const b=brani[corrente];
+            cuore.hidden=!b;
+            if (!b) return;
+
+            const preferito=preferiti.includes(b.id);
+            cuore.textContent=preferito ? "♥" : "♡";
+            cuore.classList.toggle("attivo", preferito);
+        }
+
+        function aggiornaCuori() {
+            disegnaCuore(document.getElementById("cuoreBarra"));
+            disegnaCuore(document.getElementById("cuoreGrande"));
+        }
+
+        function premiCuore() {
+            const b=brani[corrente];
+            if(!b) return;
+
+            cambiaPreferito(b.id);
+            mostraLista();
+        }
+
+        function cambiaPreferito(id) {
+            if(preferiti.includes(id)) {
+                preferiti=preferiti.filter(function (x) {return x!==id;});
+            }else {
+                preferiti.push(id);
+            }
+
+            salvaPreferiti();
+        }
+
+        function trovaPlaylist() {
+            return playlist.find(function (p) {return p.id===playlistAperta;});
+        }
+
+        function vicino(passo) {
+            const ids=idsAttivi();
+            const idAttuale=brani[corrente] ? brani[corrente].id : null;
+
+            if(casuale && ids.length>1 && passo>0) {
+                let scelto;
+
+                do {
+                    scelto=ids[Math.floor(Math.random()*ids.length)];
+                }while (scelto===idAttuale);
+
+                return brani.findIndex(function (b) {return b.id===scelto;});
+            }
+
+            let posizione=ids.indexOf(idAttuale);
+
+            posizione=(posizione+passo+ids.length) % ids.length;
+
+            return brani.findIndex(function (b) {return b.id===ids[posizione];});
+        }
+
+        function mostraPlaylist() {
+            const elenco=document.getElementById("elencoPlaylist");
+            elenco.innerHTML="";
+
+            playlist.forEach(function (p) {
+                const riga=document.createElement("li");
+                riempiRiga(riga, p.nome, p.brani.length + " brani");
+                riga.addEventListener("click", function () {
+                    playlistAperta=p.id;
+                    mostraDettaglio();
+                    vaiA("playlist");
+                });
+
+                elenco.appendChild(riga);
+            });
+        }
+
+        function mostraDettaglio() {
+            const p=trovaPlaylist();
+            if(!p) return;
+
+            document.getElementById("nomePlaylist").textContent=p.nome;
+            const righe=document.getElementById("righePlaylist");
+            righe.innerHTML="";
+
+            p.brani.forEach(function (id) {
+                const numero=brani.findIndex(function (b) {return b.id===id;});
+                if(numero===-1) return;
+
+                const riga=document.createElement("li");
+                riempiRiga(riga, brani[numero].nome);
+                if (numero===corrente) {
+                    riga.style.fontWeight="bold";
+                }
+
+                riga.addEventListener("click", function() {
+                    coda=p.brani.slice();
+                    suona(numero);
+                });
+
+                const togli=document.createElement("button");
+                togli.textContent="-";
+                togli.addEventListener("click", function (evento) {
+                    evento.stopPropagation();
+                    p.brani=p.brani.filter(function (x) {return x!==id;});
+                    salvaPlaylist();
+                    mostraLista();
+                });
+
+                riga.appendChild(togli);
+                righe.appendChild(riga);
+            });
+
+            const selezione=document.getElementById("sceltaBrano");
+            selezione.innerHTML="";
+            brani.forEach(function (b) {
+                if (p.brani.includes(b.id)) return;
+                const opzione=document.createElement("option");
+                opzione.value=b.id;
+                opzione.textContent=b.nome;
+                selezione.appendChild(opzione);
+            });
+        }
+
+        function idsAttivi() {
+            return coda.length>0 ?coda : brani.map(function (b) {return b.id;});
+        }
+
+        document.getElementById("creaPlaylist").addEventListener("click", function () {
+            const campo=document.getElementById("nomeNuova");
+            const nome=campo.value.trim();
+            if(nome==="") return;
+
+            playlist.push({id: Date.now(), nome: nome, brani: []});
+            campo.value="";
+            salvaPlaylist();
+            mostraLista();
+        });
+
+        document.getElementById("aggiungiBrano").addEventListener("click", function () {
+            const p=trovaPlaylist();
+            const selezione=document.getElementById("sceltaBrano");
+            if(!p || selezione.value==="") return;
+
+            p.brani.push(Number(selezione.value));
+            salvaPlaylist();
+            mostraLista();
+        });
+
+        document.getElementById("riproduciPlaylist").addEventListener("click", function () {
+            const p=trovaPlaylist();
+            if (!p || p.brani.length===0) return;
+
+            coda=p.brani.slice();
+            suona(brani.findIndex(function (b) {return b.id===coda[0];}));
+        });
+
+        document.getElementById("eliminaPlaylist").addEventListener("click", function () {
+            if(!confirm("Eliminare questa playlist? I brani restano nella libreria.")) return;
+
+            playlist=playlist.filter(function (p) {return p.id!==playlistAperta;});
+            playlistAperta=null;
+            salvaPlaylist();
+            mostraLista();
+            vaiA("libreria");
+        });
+
+        document.getElementById("indietro").addEventListener("click", function () {
+            vaiA("libreria");
+        });
+
+        function vuoto(elenco, testo) {
+            const riga=document.createElement("li");
+            riga.textContent = testo;
+            elenco.appendChild(riga);
+        }
+
+        function mostraHome() {
+            const elencoPlaylist = document.getElementById("homePlaylist");
+            const elencoRecenti = document.getElementById("homeRecenti");
+            elencoPlaylist.innerHTML = "";
+            elencoRecenti.innerHTML = "";
+
+            if (playlist.length === 0) {
+                vuoto(elencoPlaylist, "Nessuna playlist: creane una dalla Libreria.");
+            }
+
+            playlist.forEach(function (p) {
+                const riga = document.createElement("li");
+                riempiRiga(riga, p.nome, p.brani.length + " brani");
+                riga.addEventListener("click", function () {
+                    playlistAperta = p.id;
+                    mostraDettaglio();
+                    vaiA("playlist");
+                });
+                elencoPlaylist.appendChild(riga);
+            });
+
+            if (recenti.length === 0) {
+                vuoto(elencoRecenti, "Ancora niente: fai partire un brano.");
+            }
+
+            recenti.forEach(function (id) {
+                const numero = brani.findIndex(function (b) { return b.id === id; });
+                if (numero === -1) return;
+
+                const riga = document.createElement("li");
+                riempiRiga(riga, brani[numero].nome);
+                if (numero === corrente) {
+                    riga.style.fontWeight = "bold";
+                }
+                riga.addEventListener("click", function () {
+                    coda = [];
+                    suona(numero);
+                });
+                elencoRecenti.appendChild(riga);
+            });
+
+            const elencoPreferiti=document.getElementById("homePreferiti");
+            elencoPreferiti.innerHTML="";
+
+            if (preferiti.length===0) {
+                vuoto(elencoPreferiti, "Tocca il cuore su un brano per aggiungerlo qui.");
+            }
+
+            preferiti.forEach(function (id) {
+                const numero=brani.findIndex(function (b) {return b.id===id;});
+                if (numero===-1) return;
+
+                const riga=document.createElement("li");
+                riempiRiga(riga, brani[numero].nome);
+
+                if (numero===corrente) {
+                    riga.style.fontWeight="bold";
+                }
+
+                riga.addEventListener("click", function () {
+                    coda=preferiti.slice();
+                    suona(numero);
+                });
+
+                elencoPreferiti.appendChild(riga);
+            });
+        }
+
+        function aggiornaPieno() {
+            const b=brani[corrente];
+            const contenitore=document.getElementById("copertinaGrande");
+            contenitore.innerHTML="";
+
+            if (!b) {
+                document.getElementById("titoloGrande").textContent="Nessun brano";
+                return;
+            }
+
+            contenitore.appendChild(copertina(b.nome));
+            document.getElementById("titoloGrande").textContent=b.nome;
+        }
+        
+        function suona(numero) {
+            corrente=numero;
+            const brano=brani[corrente];
+            player.src=URL.createObjectURL(brano.file);
+            player.play();
+            document.getElementById("titolo").textContent=brano.nome;
+            aggiornaPieno();
+            mostraLista();
+            recenti = recenti.filter(function (id) { return id !== brano.id; });
+            recenti.unshift(brano.id);
+            recenti = recenti.slice(0, 10);
+            localStorage.setItem("recenti", JSON.stringify(recenti));
+        }
+
+        function formatta(secondi) {
+            if(isNaN(secondi)) return "0:00";
+            const minuti=Math.floor(secondi/60);
+            const resto=Math.floor(secondi%60);
+            return minuti + ":" + String(resto).padStart(2, "0");
+        }
+        
+        scelta.addEventListener("change", async function() {
+            for (const file of scelta.files) {
+                const nome=file.name.replace(/\.[^.]+$/, "");
+                await aspetta(archivio("readwrite").add({nome: nome, file: file}));
+            }
+
+            await caricaBrani();
+        });
+
+        bottonePlay.addEventListener("click", function() {
+            if (corrente===-1) {
+                if (brani.length>0) suona(0);
+                return;
+            }
+
+            if (player.paused) {
+                player.play();
+            }else {
+                player.pause();
+            }
+        });
+
+        player.addEventListener("play", function() {
+            bottonePlay.textContent="⏸";
+        });
+
+        player.addEventListener("pause", function() {
+            bottonePlay.textContent="▶";
+        });
+
+        player.addEventListener("loadedmetadata", function() {
+            document.getElementById("durata").textContent=formatta(player.duration);
+        });
+
+        player.addEventListener("timeupdate", function() {
+            document.getElementById("tempoCorrente").textContent=formatta(player.currentTime);
+
+            if (player.duration) {
+                barra.value=(player.currentTime/player.duration)*100;
+            }
+        });
+
+        barra.addEventListener("input", function() {
+            if (!Number.isFinite(player.duration)) return;
+            player.currentTime=(barra.value/100)*player.duration;
+        });
+
+        document.getElementById("successivo").addEventListener("click", function() {
+            if(brani.length===0) return;
+            suona(vicino(1));
+        });
+
+        document.getElementById("precedente").addEventListener("click", function() {
+            if(brani.length===0) return;
+            suona(vicino(-1));
+        });
+
+        player.addEventListener("ended", function() {
+            if(ripeti===2) {
+                player.currentTime=0;
+                player.play();
+                return;
+            }
+
+            const ids=idsAttivi();
+            const ultimo=brani[corrente] && ids.indexOf(brani[corrente].id)===ids.length-1;
+
+            if (ripeti===0 && !casuale && ultimo) return;
+
+            suona(vicino(1));
+        });
+
+
+        ricerca.addEventListener("input", function() {
+            testoRicerca=ricerca.value.toLowerCase().trim();
+            mostraLista();
+        });
+
+        const tab=document.querySelectorAll(".tab");
+        const schermate=document.querySelectorAll(".schermata");
+
+        document.getElementById("casuale").addEventListener("click", function() {
+            casuale=!casuale;
+            this.classList.toggle("attivo", casuale);
+        });
+
+        bottoneRipeti.addEventListener("click", function() {
+            ripeti=(ripeti+1)%3;
+            bottoneRipeti.classList.toggle("attivo", ripeti!==0);
+            bottoneRipeti.textContent=ripeti===2 ? "↻1" : "↻";
+        });
+
+        document.addEventListener("keydown", function (evento) {
+            if(evento.code!=="Space") return;
+            if(evento.target.matches('input[type="text"], input[type="search"], select')) return;
+
+            evento.preventDefault();
+
+            if(evento.target.tagName==="BUTTON") evento.target.blur();
+
+            bottonePlay.click();
+        });
+
+        function applicaTema(valore) {
+            const schemi= {auto: "light dark", chiaro: "light", scuro: "dark"};
+            document.documentElement.style.colorScheme=schemi[valore];
+        }
+
+        selettoreTema.value=temaSalvato;
+        applicaTema(temaSalvato);
+
+        selettoreTema.addEventListener("change", function () {
+            localStorage.setItem("tema", selettoreTema.value);
+            applicaTema(selettoreTema.value);
+        });
+
+        document.getElementById("cuoreBarra").addEventListener("click", premiCuore);
+        document.getElementById("cuoreGrande").addEventListener("click", premiCuore);
+
+        function vaiA(nome) {
+            schermate.forEach(function (s) {
+                s.hidden=s.id!=="schermata-" + nome;
+            });
+
+            tab.forEach(function (t) {
+                t.style.fontWeight=t.dataset.schermata===nome ? "bold" : "normal";
+            });
+        }
+
+        tab.forEach(function (t) {
+            t.addEventListener("click", function () {
+                vaiA(t.dataset.schermata);
+            });
+        });
+
+        document.getElementById("titolo").addEventListener("click", function () {
+            aggiornaPieno();
+            pieno.hidden=false;
+        });
+
+        document.getElementById("chiudi").addEventListener("click", function () {
+            pieno.hidden=true;
+        });
+
+        document.getElementById("riproduciPreferiti").addEventListener("click", function () {
+            const validi=preferiti.filter(function (id) {
+                return brani.some(function (b) {return b.id===id;});
+            });
+
+            if (validi.length===0) return;
+
+            coda=validi;
+            suona(brani.findIndex(function (b) {return b.id===coda[0];}));
+        })
+
+        vaiA("home");
+
+        apriDatabase().then(function (database) {
+            db=database;
+            caricaBrani();
+        });
+    </script>
+</body>
+</html>
