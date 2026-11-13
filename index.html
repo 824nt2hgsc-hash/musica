@@ -303,6 +303,10 @@
     #cuoreBarra.attivo {
         color: var(--accento);
     }
+
+    #cancellaTutto {background: var(--pannello); color: var(--accento);}
+
+    .nota {margin: 4px 0 0; font-size: 0.85rem; color: var(--secondario);}
     </style>
 </head>
 <body>
@@ -351,6 +355,10 @@
             <option value="chiaro">Chiaro</option>
             <option value="scuro">Scuro</option>
         </select>
+
+        <h2>Dati</h2>
+        <button id="cancellaTutto">Cancella tutti i dati</button>
+        <p class="nota">Elimina brani, playlist e preferiti da questo dispositivo. Non si può annullare.</p>
     </section>
 
     <section id="schermata-playlist" class="schermata" hidden>
@@ -892,12 +900,31 @@
         }
         
         scelta.addEventListener("change", async function() {
-            for (const file of scelta.files) {
+            const chiavi=new Set(brani.map(function(b) {
+                return b.file.name + "|" + b.file.size;
+            }));
+
+            let saltati=0;
+
+            for(const file of scelta.files) {
+                const chiave=file.name + "|" + file.size;
+
+                if (chiavi.has(chiave)) {
+                    saltati++;
+                    continue;
+                }
+
+                chiavi.add(chiave);
                 const nome=file.name.replace(/\.[^.]+$/, "");
                 await aspetta(archivio("readwrite").add({nome: nome, file: file}));
             }
 
+            scelta.value="";
             await caricaBrani();
+
+            if (saltati>0) {
+                alert(saltati + " brani erano già nella libreria e non sono stati ricaricati.");
+            }
         });
 
         bottonePlay.addEventListener("click", function() {
@@ -1089,6 +1116,36 @@
             if("mediaSession" in navigator) navigator.mediaSession.playbackState="paused";
             aggiornaPosizione();
         })
+
+        document.getElementById("cancellaTutto").addEventListener("click", async function() {
+            if(!confirm("Cancellare tutti i brani, playlist e i preferiti? Non si può annullare")) return;
+
+            player.pause();
+            player.removeAttribute("src");
+            player.load();
+            corrente=-1;
+            coda=[];
+            playlistAperta=null;
+
+            document.getElementById("titolo").textContent="Nessun brano";
+            document.getElementById("tempoCorrente").textContent="0:00";
+            document.getElementById("durata").textContent="0:00";
+            barra.value=0;
+
+            if("mediaSession" in navigator) navigator.mediaSession.metadata=null;
+
+            await aspetta(archivio("readwrite").clear());
+
+            playlist=[];
+            preferiti=[];
+            recenti=[];
+            salvaPlaylist();
+            salvaPreferiti();
+            localStorage.setItem("recenti", "[]");
+
+            await caricaBrani();
+            aggiornaPieno();
+        });
 
         vaiA("home");
 
