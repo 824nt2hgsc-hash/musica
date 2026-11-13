@@ -338,7 +338,7 @@
         <ul id="elencoPlaylist"></ul>
 
         <h2>Brani</h2>
-        <input type="file" id="scelta" accept="audio/*" multiple>
+        <input type="file" id="scelta" accept=".flac" multiple>
         <ul id="lista"></ul>
     </section>
 
@@ -1044,6 +1044,50 @@
 
             coda=validi;
             suona(brani.findIndex(function (b) {return b.id===coda[0];}));
+        })
+
+        if("mediaSession" in navigator) {
+            const sessione=navigator.mediaSession;
+
+            sessione.setActionHandler("play", function() {player.play();});
+            sessione.setActionHandler("pause", function() {player.pause();});
+
+            sessione.setActionHandler("nexttrack", function() {
+                if(brani.length>0) suona(vicino(1));
+            });
+
+            sessione.setActionHandler("previoustrack", function() {
+                if(brani.length>0) suona(vicino(-1));
+            });
+
+            sessione.setActionHandler("seekto", function(dettagli) {
+                if (!Number.isFinite(player.duration)) return;
+                player.currentTime=dettagli.seekTime;
+            });
+        }
+
+        function aggiornaPosizione() {
+            if(!("mediaSession" in navigator)) return;
+            if(!Number.isFinite(player.duration)) return;
+
+            navigator.mediaSession.setPositionState({
+                duration: player.duration,
+                playbackRate: player.playbackRate,
+                position: Math.min(player.currentTime, player.duration)
+            });
+        }
+
+        player.addEventListener("loadedmetadata", aggiornaPosizione);
+        player.addEventListener("seeked", aggiornaPosizione);
+
+        player.addEventListener("play", function() {
+            if ("mediaSession" in navigator) navigator.mediaSession.playbackState="playing";
+            aggiornaPosizione();
+        });
+
+        player.addEventListener("pause", function() {
+            if("mediaSession" in navigator) navigator.mediaSession.playbackState="paused";
+            aggiornaPosizione();
         })
 
         vaiA("home");
