@@ -338,7 +338,7 @@
         <ul id="elencoPlaylist"></ul>
 
         <h2>Brani</h2>
-        <input type="file" id="scelta" accept=".flac" multiple>
+        <input type="file" id="scelta" accept="audio/*" multiple>
         <ul id="lista"></ul>
     </section>
 
@@ -543,6 +543,36 @@
             }
 
             return "hsl(" + h + ", 60%, 48%)";
+        }
+
+        function immagineCopertina(nome) {
+            const tela=document.createElement("canvas");
+            tela.width=512;
+            tela.height=512;
+
+            const c=tela.getContext("2d");
+            c.fillStyle=colore(nome);
+            c.fillRect(0, 0, 512, 512);
+
+            c.fillStyle="#ffffff";
+            c.font="bold 256px -apple-system, Helvetica, Arial, sans-serif";
+            c.textAlign="center";
+            c.textBaseline="middle";
+            c.fillText(nome.charAt(0).toUpperCase(), 256, 276);
+
+            return tela.toDataURL("image/png");
+        }
+
+        function aggiornaSchermataBlocco(brano) {
+            if(!("mediaSession" in navigator)) return;
+
+            navigator.mediaSession.metadata=new MediaMetadata({
+                title: brano.nome,
+                artist:"La mia musica",
+                artwork: [
+                    {src:immagineCopertina(brano.nome), sizes:"512x512", type:"image/png"}
+                ]
+            });
         }
 
         function copertina(nome) {
@@ -844,6 +874,7 @@
             const brano=brani[corrente];
             player.src=URL.createObjectURL(brano.file);
             player.play();
+            aggiornaSchermataBlocco(brano);
             document.getElementById("titolo").textContent=brano.nome;
             aggiornaPieno();
             mostraLista();
