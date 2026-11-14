@@ -378,6 +378,8 @@
         <ul id="elencoPlaylist"></ul>
 
         <h2>Brani</h2>
+        <button id="sincronizza">Sincronizza</button>
+        <p id="statoSync" class="nota"></p>
         <input type="file" id="scelta" accept=".flac" multiple>
         <ul id="lista"></ul>
     </section>
@@ -1254,6 +1256,68 @@
         });
 
         if (!token) mostraAccesso();
+
+        function tipoAudio(nome, tipo) {
+            if (tipo && tipo.startsWith("audio/")) return tipo;
+
+            const tipi={mp3: "audio/mpeg", flac: "audio/flac", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", aac: "audio/aac"};
+            return tipi[nome.split(".").pop().toLowerCase()] || tipo || "";
+        }
+
+        async function sincronizza() {
+            const bottone=document.getElementById("sincronizza");
+            const stato=document.getElementById("statoSync");
+            let caricati=0;
+            let=scaricati=0;
+
+            bottone.disabled=true;
+
+            try {
+                stato.textContent="Controllo l'archivio...";
+                const elenco=await chiamaServer("/brani");
+                
+                if (!elenco.ok) throw new Error("Elenco non disponibile (" + elenco.status + ")");
+
+                const sulServer=(await elenco.json()).brani.map(function(b) {return b.nome;});
+                const nomiLocali=brani.map(function(b) {return b.file.name;});
+
+                const daCaricare=brani.filter(function(b) {return !sulServer.includes(b.file.name);});
+                for (const b of daCaricare) {
+                    stato.textContent="Carico " + (caricati+1) + " di " + daCaricare.length + ": " + b.nome;
+                    const r=await chiamaServer("/brani/" + endcodeURIComponent(b.file.name), {method: "PUT", body: b.file});
+                    if (!r.ok) throw new Error("Caricamento di " + b.nome + " non riusciuto (" + r.status + ")");
+                    caricati++;
+                }
+
+                const daScaricare= sulServer.filter(function (n) {return !nomiLocali.includes(n);});
+
+                for (const n of daScaricare) {
+                    stato.textContent="Scarico " + (scaricati + 1) + " di " + daScaricare.length + ": " + n;
+                    const r=await chiamaServer("/brani/" + endcodeURIComponent(n));
+                    if (!r.ok) throw new Error("Scaricamento di " + n + " non riuscito (" + r.status + ")");
+
+                    const blob=await r.blob();
+                    const file=new File([blob], n, {type: tipoAudio(n, blob.type)});
+                    await aspetta(archivio("readwrite").add({nome:n.replace(/\.[^.]+$/, ""), file: file}));
+                    scaricati++;
+                }
+
+                await caricaBrani();
+                stato.textContent="Fatto: " + caricati + " caricati, " + scaricati + " scaricati.";
+            }catch (e) {
+                if (e.message==="Non autorizzato") {
+                    stato.textContent="Accedi di nuovo per sicronizzare.";
+                }else if (e instanceof TypeError) {
+                    stato.textContent="Server non raggiungibile. Controlla la connessione.";
+                }else {
+                    stato.textContent="Errore: " + e.message;
+                }
+            }finally {
+                bottone.disabled=false;
+            }
+        }
+
+        document.getElementById("sicronizza").addEventListener("click", sincronizza);
 
         vaiA("home");
 
