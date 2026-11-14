@@ -44,7 +44,7 @@
 
     h2 { font-size: 1.2rem; margin: 28px 0 8px; }
 
-    input[type="text"], input[type="search"], select {
+    input[type="text"], input[type="search"], input[type="email"], input[type="password"], select {
         width: 100%;
         padding: 10px 14px;
         margin-bottom: 8px;
@@ -307,9 +307,44 @@
     #cancellaTutto {background: var(--pannello); color: var(--accento);}
 
     .nota {margin: 4px 0 0; font-size: 0.85rem; color: var(--secondario);}
+
+    #accesso {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: var(--sfondo);
+    }
+
+    .cardAccesso {width: 100%; max-width: 360px;}
+
+    .cardAccesso button {
+        width:100%;
+        margin-top: 4px;
+        padding: 12px;
+        border: none;
+        border-radius: 999px;
+        background: var(--accento);
+        color: #ffffff;
+        font: inherit;
+        cursor: pointer;
+    }
+
+    .errore {min-height: 1.2em; margin: 4px 0 8px; font-size:0.9rem; color: var(--accento);}
     </style>
 </head>
 <body>
+    <div id="accesso" hidden>
+        <div class="cardAccesso">
+            <h1>Accedi</h1>
+            <input type="email" id="accessoEmail" placeholder="Email" autocomplete="username">
+            <input type="password" id="accessoPassword" placeholder="Password" autocomplete="current-password">
+            <p id="accessoErrore" class="errore"></p>
+        </div>
+    </div>
     <audio id="player"></audio>
 
     <section id="schermata-home" class="schermata">
@@ -359,6 +394,9 @@
         <h2>Dati</h2>
         <button id="cancellaTutto">Cancella tutti i dati</button>
         <p class="nota">Elimina brani, playlist e preferiti da questo dispositivo. Non si può annullare.</p>
+
+        <h2>Account</h2>
+        <button id="esci">Esci</button>
     </section>
 
     <section id="schermata-playlist" class="schermata" hidden>
@@ -1012,7 +1050,7 @@
 
         document.addEventListener("keydown", function (evento) {
             if(evento.code!=="Space") return;
-            if(evento.target.matches('input[type="text"], input[type="search"], select')) return;
+            if(evento.target.matches('input([type="range"]), select')) return;
 
             evento.preventDefault();
 
@@ -1146,6 +1184,75 @@
             await caricaBrani();
             aggiornaPieno();
         });
+
+        const SERVER="https://musica-server.78b2fgm75c.workers.dev";
+        const accesso=document.getElementById("accesso");
+        let token=localStorage.getItem("token") || "";
+
+        function mostraAccesso(messaggio) {
+            document.getElementById("accessoErrore").textContent=messaggio || "";
+            document.getElementById("accessoPassword").value="";
+            accesso.hidden=false;
+        }
+
+        async function chiamaServer(percorso, opzioni) {
+            opzioni=opzioni || {};
+            opzioni.headers=Object.assign({}, opzioni.headers, {Authorization: "Bearer " + token});
+
+            const risposta=await fetch(SERVER + percorso, opzioni);
+
+            if (risposta.status===401) {
+                token="";
+                localStorage.removeItem("token");
+                mostraAccesso("Sessione scaduta: accedi di nuovo");
+                throw new Error("Non autorizzato");
+            }
+
+            return risposta;
+        }
+
+        async function accedi() {
+            const errore=document.getElementById("accessoErrore");
+            errore.textContent="";
+
+            try {
+                const risposta=await fetch(SERVER + "/login", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        email: document.getElementById("accessoEmail").value,
+                        password: document.getElementById("accessoPassword").value
+                    })
+                });
+
+                const dati= await risposta.json();
+
+                if (!risposta.ok) {
+                    errore.textContent=dati.errore || "Accesso non riuscito";
+                    return;
+                }
+
+                token=dati.token;
+                localStorage.setItem("token", token);
+                document.getElementById("accessoPassword").value="";
+                accesso.hidden=true;
+            }catch (e) {
+                errore.textContent="Server non raggiungibile. Controlla la connessione.";
+            }
+        }
+
+        document.getElementById("accessoInvia").addEventListener("click", accedi);
+
+        document.getElementById("accessoPassword").addEventListener("keydown", function (evento) {
+            if (evento.key==="Enter") accedi();
+        });
+
+        document.getElementById("esci").adEventListener("click", function() {
+            token="";
+            localStorage.removeItem("token");
+            mostraAccesso();
+        });
+
+        if (!token) mostraAccesso();
 
         vaiA("home");
 
