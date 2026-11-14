@@ -1247,7 +1247,7 @@
             if (evento.key==="Enter") accedi();
         });
 
-        document.getElementById("esci").adEventListener("click", function() {
+        document.getElementById("esci").addEventListener("click", function() {
             token="";
             localStorage.removeItem("token");
             mostraAccesso();
