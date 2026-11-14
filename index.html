@@ -470,6 +470,7 @@
         let coda=[];
         let playlistAperta=null;
         let recenti=JSON.parse(localStorage.getItem("recenti") || "[]");
+        let rimossi=JSON.parse(localStorage.getItem("rimossi") || "[]");
         let casuale=false;
         let ripeti=0;
         let preferiti=JSON.parse(localStorage.getItem("preferti") || "[]");
@@ -507,6 +508,11 @@
 
         async function eliminaBrano(id) {
             const posizione=brani.findIndex(function (b) {return b.id===id;});
+            const eliminato=brani[posizione];
+            if (eliminato && !rimossi.includes(eliminato.file.name)) {
+                rimossi.push(eliminato.file.name);
+                salvaRimossi();
+            }
 
             if (posizione===corrente) {
                 player.pause();
@@ -655,6 +661,10 @@
 
         function salvaPlaylist() {
             localStorage.setItem("playlist", JSON.stringify(playlist));
+        }
+
+        function salvaRimossi() {
+            localStorage.setItem("rimossi", JSON.stringify(rimossi));
         }
 
         function salvaPreferiti() {
@@ -958,10 +968,13 @@
                 chiavi.add(chiave);
                 const nome=file.name.replace(/\.[^.]+$/, "");
                 await aspetta(archivio("readwrite").add({nome: nome, file: file}));
+                rimossi=rimossi.filter(function (n) {return n!==file.name;});
             }
 
             scelta.value="";
             await caricaBrani();
+            salvaRimossi();
+            sincronizza();
 
             if (saltati>0) {
                 alert(saltati + " brani erano già nella libreria e non sono stati ricaricati.");
@@ -1265,65 +1278,93 @@
         }
 
         async function sincronizza() {
-            const bottone=document.getElementById("sincronizza");
-            const stato=document.getElementById("statoSync");
-            let caricati=0;
-            let=scaricati=0;
+            let sincronizzando = false;
+            let ultimaSync = 0;
 
-            bottone.disabled=true;
+            async function sincronizza() {
+                const bottone = document.getElementById("sincronizza");
+                const stato = document.getElementById("statoSync");
 
-            try {
-                stato.textContent="Controllo l'archivio...";
-                const elenco=await chiamaServer("/brani");
-                
-                if (!elenco.ok) throw new Error("Elenco non disponibile (" + elenco.status + ")");
+                if (sincronizzando || !token) return;
 
-                const sulServer=(await elenco.json()).brani.map(function(b) {return b.nome;});
-                const nomiLocali=brani.map(function(b) {return b.file.name;});
-
-                const daCaricare=brani.filter(function(b) {return !sulServer.includes(b.file.name);});
-                for (const b of daCaricare) {
-                    stato.textContent="Carico " + (caricati+1) + " di " + daCaricare.length + ": " + b.nome;
-                    const r=await chiamaServer("/brani/" + encodeURIComponent(b.file.name), {method: "PUT", body: b.file});
-                    if (!r.ok) throw new Error("Caricamento di " + b.nome + " non riusciuto (" + r.status + ")");
-                    caricati++;
+                if (!navigator.onLine) {
+                    stato.textContent = "Sei offline: sincronizzo appena torni in linea.";
+                    return;
                 }
 
-                const daScaricare= sulServer.filter(function (n) {return !nomiLocali.includes(n);});
+                sincronizzando = true;
+                ultimaSync = Date.now();
+                bottone.disabled = true;
 
-                for (const n of daScaricare) {
-                    stato.textContent="Scarico " + (scaricati + 1) + " di " + daScaricare.length + ": " + n;
-                    const r=await chiamaServer("/brani/" + encodeURIComponent(n));
-                    if (!r.ok) throw new Error("Scaricamento di " + n + " non riuscito (" + r.status + ")");
+                let caricati = 0;
+                let scaricati = 0;
 
-                    const blob=await r.blob();
-                    const file=new File([blob], n, {type: tipoAudio(n, blob.type)});
-                    await aspetta(archivio("readwrite").add({nome:n.replace(/\.[^.]+$/, ""), file: file}));
-                    scaricati++;
+                try {
+                    stato.textContent = "Controllo l'archivio...";
+                    const elenco = await chiamaServer("/brani");
+                    if (!elenco.ok) throw new Error("Elenco non disponibile (" + elenco.status + ")");
+
+                    const sulServer = (await elenco.json()).brani.map(function (b) { return b.nome; });
+                    const nomiLocali = brani.map(function (b) { return b.file.name; });
+
+                    const daCaricare = brani.filter(function (b) { return !sulServer.includes(b.file.name); });
+                    for (const b of daCaricare) {
+                        stato.textContent = "Carico " + (caricati + 1) + " di " + daCaricare.length + ": " + b.nome;
+                        const r = await chiamaServer("/brani/" + encodeURIComponent(b.file.name), { method: "PUT", body: b.file });
+                        if (!r.ok) throw new Error("Caricamento di " + b.nome + " non riuscito (" + r.status + ")");
+                        caricati++;
+                    }
+
+                    const daScaricare = sulServer.filter(function (n) {
+                        return !nomiLocali.includes(n) && !rimossi.includes(n);
+                    });
+                    for (const n of daScaricare) {
+                        stato.textContent = "Scarico " + (scaricati + 1) + " di " + daScaricare.length + ": " + n;
+                        const r = await chiamaServer("/brani/" + encodeURIComponent(n));
+                        if (!r.ok) throw new Error("Scaricamento di " + n + " non riuscito (" + r.status + ")");
+
+                        const blob = await r.blob();
+                        const file = new File([blob], n, { type: tipoAudio(n, blob.type) });
+                        await aspetta(archivio("readwrite").add({ nome: n.replace(/\.[^.]+$/, ""), file: file }));
+                        scaricati++;
+                    }
+
+                    await caricaBrani();
+
+                    const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+                    stato.textContent = (caricati + scaricati === 0
+                        ? "Tutto aggiornato"
+                        : caricati + " caricati, " + scaricati + " scaricati") + " (" + ora + ").";
+                } catch (e) {
+                    if (e.message === "Non autorizzato") {
+                        stato.textContent = "Accedi di nuovo per sincronizzare.";
+                    } else if (e instanceof TypeError) {
+                        stato.textContent = "Server non raggiungibile. Riprovo più tardi.";
+                    } else {
+                        stato.textContent = "Errore: " + e.message;
+                    }
+                } finally {
+                    sincronizzando = false;
+                    bottone.disabled = false;
                 }
-
-                await caricaBrani();
-                stato.textContent="Fatto: " + caricati + " caricati, " + scaricati + " scaricati.";
-            }catch (e) {
-                if (e.message==="Non autorizzato") {
-                    stato.textContent="Accedi di nuovo per sicronizzare.";
-                }else if (e instanceof TypeError) {
-                    stato.textContent="Server non raggiungibile. Controlla la connessione.";
-                }else {
-                    stato.textContent="Errore: " + e.message;
-                }
-            }finally {
-                bottone.disabled=false;
             }
         }
 
         document.getElementById("sincronizza").addEventListener("click", sincronizza);
 
+        document.addEventListener("visibilitychange", function() {
+            if(document.visibilityState!=="visible") return;
+            if(Date.now()-ultimaSync<60000) return;
+            sincronizza();
+        });
+
+        window.addEventListener("online", sincronizza);
+
         vaiA("home");
 
         apriDatabase().then(function (database) {
             db=database;
-            caricaBrani();
+            caricaBrani().then(sincronizza);
         });
     </script>
 </body>
