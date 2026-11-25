@@ -540,6 +540,15 @@
         function creaRiga(brano, numero) {
             const riga=document.createElement("li");
             const elimina=document.createElement("button");
+            if (!brano.file) {
+                const scarica = document.createElement("button");
+                scarica.textContent = "⬇";
+                scarica.addEventListener("click", function (evento) {
+                    evento.stopPropagation();
+                    scaricaSulDispositivo(brano.id, scarica);
+                });
+                riga.appendChild(scarica);
+            }
             const cuore=document.createElement("button");
             const preferito=preferiti.includes(brano.id);
             riempiRiga(riga, brano.nome, brano.file ? null : "Nel cloud" + (brano.dimensione ? " · " + Math.round(brano.dimensione/1048576) + " MB" : ""));
@@ -929,10 +938,10 @@
             document.getElementById("titoloGrande").textContent=b.nome;
         }
         
-        function suonaPronto(numero) {
+        function suonaPronto(numero, indirizzo) {
             corrente=numero;
             const brano=brani[corrente];
-            player.src=URL.createObjectURL(brano.file);
+            player.src=indirizzo || URL.createObjectURL(brano.file);
             player.play();
             aggiornaSchermataBlocco(brano);
             document.getElementById("titolo").textContent=brano.nome;
@@ -945,46 +954,49 @@
         }
 
         let versioneSuona=0;
+        const indirizziStream = {};
+        let ritentoStream = false;
+
+        async function indirizzoStream(brano) {
+            const nome = nomeFile(brano);
+            const salvato = indirizziStream[nome];
+            if (salvato && salvato.scade > Date.now()) return salvato.url;
+
+            const risposta = await chiamaServer("/stream/" + encodeURIComponent(nome));
+            if (!risposta.ok) throw new Error("Streaming non disponibile (" + risposta.status + ")");
+
+            const dati = await risposta.json();
+            indirizziStream[nome] = { url: dati.url, scade: Date.now() + 50 * 60 * 1000 };
+            return dati.url;
+        }
 
         async function suona(numero) {
-            const brano=brani[numero];
+            const brano = brani[numero];
             if (!brano) return;
 
+            const mia = ++versioneSuona;
+
             if (brano.file) {
-                versioneSuona++;
                 suonaPronto(numero);
                 return;
             }
 
-            const mia=++versioneSuona;
-            const titolo=document.getElementById("titolo");
-            const titoloPrima=titolo.textContent;
-            titolo.textContent="Scarico: " + brano.nome + "...";
+            const titolo = document.getElementById("titolo");
+            const titoloPrima = titolo.textContent;
+            titolo.textContent = "Carico: " + brano.nome + "...";
 
             try {
-                const risposta=await chiamaServer("/brani/" + encodeURIComponent(nomeFile(brano)));
-                if (risposta.status===404) throw new Error("Brano non trovato nell'archivio");
-                if (!risposta.ok) throw new Error("Scaricamento non riuscito (" + risposta.status + ")");
+                const indirizzo = await indirizzoStream(brano);
+                if (mia !== versioneSuona) return;
 
-                const blob=await risposta.blob();
-                const file=new File([blob], nomeFile(brano), {type: tipoAudio(nomeFile(brano), blob.type)});
+                const posizione = brani.findIndex(function (b) { return b.id === brano.id; });
+                if (posizione === -1) return;
 
-                brano.file=file;
-                await aspetta(archivio("readwrite").put(brano));
-
-                if (mia!==versioneSuona) {
-                    await caricaBrani();
-                    return;
-                }
-
-                const posizione=brani.findIndex(function (b) {return b.id===brano.id;});
-                if (posizione===-1) return;
-                brani[posizione].file=file;
-                suonaPronto(posizione);
-            }catch (e){
-                if (mia!==versioneSuona) return;
-                titolo.textContent=titoloPrima;
-                if (e.message!=="Non autorizzato") {
+                suonaPronto(posizione, indirizzo);
+            } catch (e) {
+                if (mia !== versioneSuona) return;
+                titolo.textContent = titoloPrima;
+                if (e.message !== "Non autorizzato") {
                     alert(e instanceof TypeError ? "Server non raggiungibile." : e.message);
                 }
             }
@@ -1403,6 +1415,31 @@
             }
         }
 
+        async function scaricaSulDispositivo(id, bottone) {
+            const brano = brani.find(function (b) { return b.id === id; });
+            if (!brano || brano.file) return;
+
+            if (bottone) {
+                bottone.disabled = true;
+                bottone.textContent = "…";
+            }
+
+            try {
+                const r = await chiamaServer("/brani/" + encodeURIComponent(nomeFile(brano)));
+                if (!r.ok) throw new Error("Scaricamento non riuscito (" + r.status + ")");
+
+                const blob = await r.blob();
+                const file = new File([blob], nomeFile(brano), { type: tipoAudio(nomeFile(brano), blob.type) });
+                await aspetta(archivio("readwrite").put(Object.assign({}, brano, { file: file })));
+            } catch (e) {
+                if (e.message !== "Non autorizzato") {
+                    alert(e instanceof TypeError ? "Server non raggiungibile." : e.message);
+                }
+            }
+
+            await caricaBrani();
+        }
+
         document.getElementById("sincronizza").addEventListener("click", sincronizza);
 
         document.addEventListener("visibilitychange", function() {
@@ -1419,6 +1456,19 @@
             scelta.hidden=true;
             document.getElementById("notaSoloAscolto").hidden=false;
         }
+
+        player.addEventListener("error", function(){
+            const brano=brani[corrente];
+            if(!brano || brano.file || ritentoStream) return;
+
+            ritentoStream=true;
+            delete indirizziStream[nomeFile(brano)];
+            suona(corrente);
+        });
+
+        player.addEventListener("playing", function() {
+            ritentoStream=false;
+        });
 
         vaiA("home");
 
