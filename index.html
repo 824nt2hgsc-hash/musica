@@ -381,6 +381,7 @@
         <button id="sincronizza">Sincronizza</button>
         <p id="statoSync" class="nota"></p>
         <input type="file" id="scelta" accept=".flac" multiple>
+        <p id="notaSoloAscolto" class="nota" hidden>Su questo dispositivo i brani si caricano solo dal computer.</p>
         <ul id="lista"></ul>
     </section>
 
@@ -1306,7 +1307,7 @@
                 const sulServer = (await elenco.json()).brani.map(function (b) { return b.nome; });
                 const nomiLocali = brani.map(function (b) { return b.file.name; });
 
-                const daCaricare = brani.filter(function (b) { return !sulServer.includes(b.file.name); });
+                const daCaricare = soloAscolto ? [] : brani.filter(function (b) { return !sulServer.includes(b.file.name); });
                 for (const b of daCaricare) {
                     stato.textContent = "Carico " + (caricati + 1) + " di " + daCaricare.length + ": " + b.nome;
                     const r = await chiamaServer("/brani/" + encodeURIComponent(b.file.name), { method: "PUT", body: b.file });
@@ -1357,6 +1358,13 @@
         });
 
         window.addEventListener("online", sincronizza);
+
+        const soloAscolto=window.matchMedia("(hover:none) and (pointer: coarse)").matches;
+
+        if (soloAscolto) {
+            scelta.hidden=true;
+            document.getElementById("notaSoloAscolto").hidden=false;
+        }
 
         vaiA("home");
 
