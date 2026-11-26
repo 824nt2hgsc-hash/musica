@@ -345,6 +345,8 @@
         font-size: 0.9rem;
         cursor: pointer;
     }
+
+    .azioniGrandi { display: flex; align-items: center; gap: 16px; }
     </style>
 </head>
 <body>
@@ -427,11 +429,13 @@
     </section>
 
     <div id="pieno" hidden>
-        <button id="chiudi">⌄</button>;
+        <button id="chiudi">⌄</button>
         <div id="copertinaGrande"></div>
         <h2 id="titoloGrande"></h2>
-        <button id="cuoreGrande">♡</button>
-        <button id="eliminaOvunque" hidden>Elimina da tutti i dispositivi</button>
+        <div class="azioniGrandi">
+            <button id="cuoreGrande">♡</button>
+            <button id="eliminaOvunque" hidden>Elimina da tutti i dispositivi</button>
+        </div>
     </div>
 
     <div id="barraPlayer">
