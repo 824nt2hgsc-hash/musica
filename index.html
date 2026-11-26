@@ -1023,9 +1023,9 @@
                     saltati++;
                     continue;
                 }
-
-                await aspetta(archivio("readwrite").add({nome: nome, nomeFile: file.name, file: file}));
+                
                 const nome=file.name.replace(/\.[^.]+$/, "");
+                await aspetta(archivio("readwrite").add({nome: nome, nomeFile: file.name, file: file}));
                 await aspetta(archivio("readwrite").add({nome: nome, file: file}));
                 rimossi=rimossi.filter(function (n) {return n!==file.name;});
             }
