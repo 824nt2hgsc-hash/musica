@@ -1395,7 +1395,7 @@
                     nuovi++;
                 }
 
-                await caricaBrani();
+                if (caricati+nuovi>0) await caricaBrani();
 
                 const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
                 stato.textContent = (caricati + nuovi === 0
@@ -1455,6 +1455,14 @@
         if (soloAscolto) {
             scelta.hidden=true;
             document.getElementById("notaSoloAscolto").hidden=false;
+        }
+
+        if (soloAscolto) {
+            setInterval(function () {
+                if (document.visibilityState!=="visible") return;
+                if (Date.now() - ultima<55000) return;
+                sincronizza();
+            }, 60000);
         }
 
         player.addEventListener("error", function(){
