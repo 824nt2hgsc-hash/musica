@@ -1446,6 +1446,7 @@
                     ? "Tutto aggiornato"
                     : caricati + " caricati, " + nuovi + " nuovi, " + eliminati + " eliminati") + " (" + ora + ").";
             } catch (e) {
+                console.error("Sincronizzazione:", e)
                 if (e.message === "Non autorizzato") {
                     stato.textContent = "Accedi di nuovo per sincronizzare.";
                 } else if (e instanceof TypeError) {
