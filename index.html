@@ -334,6 +334,15 @@
     }
 
     .errore {min-height: 1.2em; margin: 4px 0 8px; font-size:0.9rem; color: var(--accento);}
+
+    #eliminaOvunque {
+        border: none;
+        background: none;
+        color: var(--accento);
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
     </style>
 </head>
 <body>
@@ -420,6 +429,7 @@
         <div id="copertinaGrande"></div>
         <h2 id="titoloGrande"></h2>
         <button id="cuoreGrande">♡</button>
+        <button id="eliminaOvunque" hidden>Elimina da tutti i dispositivi</button>
     </div>
 
     <div id="barraPlayer">
@@ -475,6 +485,11 @@
         let casuale=false;
         let ripeti=0;
         let preferiti=JSON.parse(localStorage.getItem("preferti") || "[]");
+        let vistiSulServer=JSON.parse(localStorage.getItem("visti") || "[]");
+
+        function salvaVisti() {
+            localStorage.setItem("visti", JSON.stringfy(vistiSulServer));
+        }
 
         function apriDatabase() {
             return new Promise(function (risolvi) {
@@ -507,11 +522,17 @@
             mostraLista();
         }
 
-        async function eliminaBrano(id) {
+        async function eliminaBrano(id, nonRicordare) {
             const posizione=brani.findIndex(function (b) {return b.id===id;});
             const eliminato=brani[posizione];
-            if (eliminato && !rimossi.includes(nomeFile(eliminato))) {
-                rimossi.push(nomeFile(eliminato));
+            if (eliminato) {
+                const nomeE=nomeFile(eliminato);
+                if (nonRicordare) {
+                    rimossi=rimossi.filter(function(n) {return n!==nomeE;});
+                }else if (!rimossi.includes(nomeE)) {
+                    rimossi.push(nomeE);
+                }
+
                 salvaRimossi();
             }
 
@@ -928,6 +949,7 @@
             const b=brani[corrente];
             const contenitore=document.getElementById("copertinaGrande");
             contenitore.innerHTML="";
+            document.getElementById("eliminaOvunque").hidden=soloAscolto || !b;
 
             if (!b) {
                 document.getElementById("titoloGrande").textContent="Nessun brano";
@@ -1023,7 +1045,7 @@
                     saltati++;
                     continue;
                 }
-                
+
                 const nome=file.name.replace(/\.[^.]+$/, "");
                 await aspetta(archivio("readwrite").add({nome: nome, nomeFile: file.name, file: file}));
                 await aspetta(archivio("readwrite").add({nome: nome, file: file}));
@@ -1362,6 +1384,7 @@
 
             let caricati = 0;
             let nuovi = 0;
+            let eliminati = 0;
 
             try {
                 stato.textContent = "Controllo l'archivio...";
@@ -1370,11 +1393,26 @@
 
                 const remoti = (await elenco.json()).brani;
                 const sulServer = remoti.map(function (r) { return r.nome; });
+                const affidabile = remoti.length < 1000 && (remoti.length > 0 || vistiSulServer.length <= 1);
+
+                const eliminatiAltrove = brani.filter(function (b) {
+                    return vistiSulServer.includes(nomeFile(b)) && !sulServer.includes(nomeFile(b));
+                });
+                const nomiEliminati = eliminatiAltrove.map(nomeFile);
+
+                if (affidabile) {
+                    for (const b of eliminatiAltrove) {
+                        await eliminaBrano(b.id, true);
+                        eliminati++;
+                    }
+                }
+
                 const nomiLocali = brani.map(function (b) { return nomeFile(b); });
 
                 const daCaricare = soloAscolto ? [] : brani.filter(function (b) {
-                    return b.file && !sulServer.includes(nomeFile(b));
+                    return b.file && !sulServer.includes(nomeFile(b)) && !nomiEliminati.includes(nomeFile(b));
                 });
+
                 for (const b of daCaricare) {
                     stato.textContent = "Carico " + (caricati + 1) + " di " + daCaricare.length + ": " + b.nome;
                     const r = await chiamaServer("/brani/" + encodeURIComponent(nomeFile(b)), { method: "PUT", body: b.file });
@@ -1385,6 +1423,7 @@
                 const nuoviRemoti = remoti.filter(function (r) {
                     return !nomiLocali.includes(r.nome) && !rimossi.includes(r.nome);
                 });
+
                 for (const r of nuoviRemoti) {
                     await aspetta(archivio("readwrite").add({
                         nome: r.nome.replace(/\.[^.]+$/, ""),
@@ -1395,12 +1434,17 @@
                     nuovi++;
                 }
 
+                if (affidabile) {
+                    vistiSulServer=sulServer.concat(daCaricare.map(nomeFile));
+                    salvaVisti();
+                }
+
                 if (caricati+nuovi>0) await caricaBrani();
 
                 const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-                stato.textContent = (caricati + nuovi === 0
+                stato.textContent = (caricati + nuovi + eliminati === 0
                     ? "Tutto aggiornato"
-                    : caricati + " caricati, " + nuovi + " nuovi nel cloud") + " (" + ora + ").";
+                    : caricati + " caricati, " + nuovi + " nuovi, " + eliminati + " eliminati") + " (" + ora + ").";
             } catch (e) {
                 if (e.message === "Non autorizzato") {
                     stato.textContent = "Accedi di nuovo per sincronizzare.";
@@ -1476,6 +1520,30 @@
 
         player.addEventListener("playing", function() {
             ritentoStream=false;
+        });
+
+        document.getElementById("eliminaOvunque").addEventListener("click", async function () {
+            const b=brani[corrente];
+            if (!b || soloAscolto) return;
+
+            if (!confirm("Eliminare «" + b.nome + "» da tutti i dispositivi? Non si può annullare.")) return;
+
+            try {
+                const nome=nomeFile(b);
+                const r=await chiamaServer("/brani/" + encodeURIComponent(nome), {method: "DELETE"});
+                if (!r.ok) throw new Error ("Eliminazione non riuscita(" + r.status + ")");
+
+                vistiSulServer=vistiSulServer.filter(function(n) {return n!==nome;});
+                salvaVisti();
+
+                piano.hidden=true;
+                await eliminaBrano(b.id, true);
+                aggiornaBrano();
+            }catch (e) {
+                if(e.message!=="Non autorizzato") {
+                    alert(e instanceof TypeError ? "Server non raggiungibile." : e.message);
+                }
+            }
         });
 
         vaiA("home");
