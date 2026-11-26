@@ -488,7 +488,7 @@
         let vistiSulServer=JSON.parse(localStorage.getItem("visti") || "[]");
 
         function salvaVisti() {
-            localStorage.setItem("visti", JSON.stringfy(vistiSulServer));
+            localStorage.setItem("visti", JSON.stringify(vistiSulServer));
         }
 
         function apriDatabase() {
